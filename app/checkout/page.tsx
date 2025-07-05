@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { CreditCard, Building2, Smartphone, ArrowLeft, Upload, X, FileImage, CheckCircle } from "lucide-react"
+import { CreditCard, Building2, Smartphone, ArrowLeft } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 interface PaymentMethod {
@@ -26,9 +26,6 @@ export default function CheckoutPage() {
   const [selectedVenue, setSelectedVenue] = useState<any>(null)
   const [selectedPayment, setSelectedPayment] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
-  const [paymentProof, setPaymentProof] = useState<File | null>(null)
-  const [paymentProofPreview, setPaymentProofPreview] = useState<string>("")
-  const [isUploading, setIsUploading] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
 
@@ -89,50 +86,6 @@ export default function CheckoutPage() {
     }).format(amount)
   }
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      // Check file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast({
-          title: "File terlalu besar",
-          description: "Ukuran file maksimal 5MB",
-          variant: "destructive",
-        })
-        return
-      }
-
-      // Check file type
-      if (!file.type.startsWith("image/")) {
-        toast({
-          title: "Format file tidak valid",
-          description: "Hanya file gambar yang diperbolehkan (JPG, PNG, GIF)",
-          variant: "destructive",
-        })
-        return
-      }
-
-      setPaymentProof(file)
-
-      // Create preview
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        setPaymentProofPreview(event.target?.result as string)
-      }
-      reader.readAsDataURL(file)
-
-      toast({
-        title: "File berhasil dipilih",
-        description: `${file.name} siap untuk diupload`,
-      })
-    }
-  }
-
-  const removePaymentProof = () => {
-    setPaymentProof(null)
-    setPaymentProofPreview("")
-  }
-
   const handlePayment = async () => {
     if (!selectedPayment) {
       toast({
@@ -143,65 +96,86 @@ export default function CheckoutPage() {
       return
     }
 
-    if (!paymentProof) {
-      toast({
-        title: "Upload bukti pembayaran",
-        description: "Silakan upload bukti pembayaran terlebih dahulu",
-        variant: "destructive",
-      })
-      return
-    }
-
     setIsProcessing(true)
-    setIsUploading(true)
 
-    // Simulate file upload and payment processing
+    // Simulate payment processing
     setTimeout(() => {
-      // Convert file to base64 for storage (in real app, upload to server)
-      const reader = new FileReader()
-      reader.onload = () => {
-        const transaction = {
-          id: `TRX-${Date.now()}`,
-          userId: currentUser.id,
-          date: bookingData.date,
-          time: bookingData.time,
-          field: bookingData.field,
-          price: bookingData.price,
-          paymentMethod: paymentMethods.find((p) => p.id === selectedPayment)?.name,
-          status: "pending",
-          createdAt: new Date().toISOString(),
-          venue: bookingData.venue,
-          paymentProof: {
-            fileName: paymentProof.name,
-            fileSize: paymentProof.size,
-            fileType: paymentProof.type,
-            uploadedAt: new Date().toISOString(),
-            fileData: reader.result as string, // In real app, this would be a URL
-          },
-        }
-
-        // Save transaction
-        const transactions = JSON.parse(localStorage.getItem("transactions") || "[]")
-        transactions.push(transaction)
-        localStorage.setItem("transactions", JSON.stringify(transactions))
-
-        // Clear current booking
-        localStorage.removeItem("currentBooking")
-
-        toast({
-          title: "Pembayaran berhasil dikirim!",
-          description: "Bukti pembayaran telah diupload. Menunggu konfirmasi admin.",
-        })
-
-        setIsProcessing(false)
-        setIsUploading(false)
-        router.push("/status")
+      const transaction = {
+        id: `TRX-${Date.now()}`,
+        userId: currentUser.id,
+        date: bookingData.date,
+        time: bookingData.time,
+        field: bookingData.field,
+        price: bookingData.price,
+        paymentMethod: paymentMethods.find((p) => p.id === selectedPayment)?.name,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+        venue: bookingData.venue,
+        paymentInstructions: getPaymentInstructions(selectedPayment),
       }
 
-      if (paymentProof) {
-        reader.readAsDataURL(paymentProof)
-      }
-    }, 3000) // Longer delay to simulate upload
+      // Save transaction
+      const transactions = JSON.parse(localStorage.getItem("transactions") || "[]")
+      transactions.push(transaction)
+      localStorage.setItem("transactions", JSON.stringify(transactions))
+
+      // Clear current booking
+      localStorage.removeItem("currentBooking")
+
+      toast({
+        title: "Booking berhasil dibuat!",
+        description: "Silakan lakukan pembayaran dan upload bukti di halaman Status Booking.",
+      })
+
+      setIsProcessing(false)
+      router.push("/status")
+    }, 2000)
+  }
+
+  const getPaymentInstructions = (paymentId: string) => {
+    const instructions = {
+      bca: {
+        accountNumber: "1234567890",
+        accountName: "PT FutsalBook Indonesia",
+        steps: [
+          "Transfer ke rekening BCA: 1234567890",
+          "Atas nama: PT FutsalBook Indonesia",
+          "Gunakan kode unik sebagai berita transfer",
+          "Simpan bukti transfer untuk diupload nanti",
+        ],
+      },
+      bri: {
+        accountNumber: "0987654321",
+        accountName: "PT FutsalBook Indonesia",
+        steps: [
+          "Transfer ke rekening BRI: 0987654321",
+          "Atas nama: PT FutsalBook Indonesia",
+          "Gunakan kode unik sebagai berita transfer",
+          "Simpan bukti transfer untuk diupload nanti",
+        ],
+      },
+      mandiri: {
+        accountNumber: "1122334455",
+        accountName: "PT FutsalBook Indonesia",
+        steps: [
+          "Transfer ke rekening Mandiri: 1122334455",
+          "Atas nama: PT FutsalBook Indonesia",
+          "Gunakan kode unik sebagai berita transfer",
+          "Simpan bukti transfer untuk diupload nanti",
+        ],
+      },
+      ewallet: {
+        qrCode:
+          "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+        steps: [
+          "Scan QR code dengan aplikasi e-wallet Anda",
+          "Konfirmasi pembayaran di aplikasi",
+          "Simpan screenshot bukti pembayaran",
+          "Upload bukti di halaman Status Booking",
+        ],
+      },
+    }
+    return instructions[paymentId as keyof typeof instructions] || null
   }
 
   if (!currentUser || !bookingData) {
@@ -315,16 +289,16 @@ export default function CheckoutPage() {
                   {selectedPayment === "ewallet" ? (
                     <>
                       <p>1. Pilih aplikasi e-wallet yang Anda gunakan</p>
-                      <p>2. Scan QR code yang akan muncul</p>
+                      <p>2. Scan QR code yang akan muncul setelah konfirmasi</p>
                       <p>3. Konfirmasi pembayaran di aplikasi</p>
-                      <p>4. Tunggu konfirmasi pembayaran</p>
+                      <p>4. Upload bukti pembayaran di halaman Status Booking</p>
                     </>
                   ) : (
                     <>
                       <p>1. Transfer ke nomor rekening yang akan diberikan</p>
                       <p>2. Gunakan kode unik sebagai berita transfer</p>
                       <p>3. Simpan bukti transfer</p>
-                      <p>4. Pembayaran akan dikonfirmasi otomatis</p>
+                      <p>4. Upload bukti pembayaran di halaman Status Booking</p>
                     </>
                   )}
                 </div>
@@ -332,112 +306,41 @@ export default function CheckoutPage() {
             </Card>
           )}
 
-          {/* Upload Payment Proof */}
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Upload className="w-5 h-5 text-emerald-600" />
-                <span>Upload Bukti Pembayaran</span>
-              </CardTitle>
-              <CardDescription>Upload screenshot atau foto bukti transfer/pembayaran Anda</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {!paymentProofPreview ? (
-                <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-emerald-400 transition-colors">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                    id="payment-proof-upload"
-                  />
-                  <label htmlFor="payment-proof-upload" className="cursor-pointer flex flex-col items-center space-y-4">
-                    <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
-                      <Upload className="w-8 h-8 text-emerald-600" />
-                    </div>
-                    <div>
-                      <p className="text-lg font-medium text-gray-900 mb-2">Klik untuk upload bukti pembayaran</p>
-                      <p className="text-sm text-gray-500">Format: JPG, PNG, GIF (Maksimal 5MB)</p>
-                    </div>
-                  </label>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="relative bg-gray-50 rounded-xl p-4">
-                    <div className="flex items-start space-x-4">
-                      <div className="relative">
-                        <img
-                          src={paymentProofPreview || "/placeholder.svg"}
-                          alt="Bukti Pembayaran"
-                          className="w-24 h-24 object-cover rounded-lg border-2 border-emerald-200"
-                        />
-                        <div className="absolute -top-2 -right-2">
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="w-6 h-6 rounded-full p-0"
-                            onClick={removePaymentProof}
-                          >
-                            <X className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <FileImage className="w-4 h-4 text-emerald-600" />
-                          <span className="font-medium text-gray-900">{paymentProof?.name}</span>
-                        </div>
-                        <p className="text-sm text-gray-500 mb-2">
-                          Ukuran: {paymentProof ? (paymentProof.size / 1024 / 1024).toFixed(2) : 0} MB
-                        </p>
-                        <div className="flex items-center space-x-2">
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                          <span className="text-sm text-green-600 font-medium">File siap diupload</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h4 className="font-medium text-blue-900 mb-2">Tips Upload Bukti Pembayaran:</h4>
-                    <ul className="text-sm text-blue-800 space-y-1">
-                      <li>• Pastikan foto/screenshot jelas dan tidak blur</li>
-                      <li>• Sertakan informasi nominal, tanggal, dan waktu transfer</li>
-                      <li>• Pastikan nama pengirim sesuai dengan nama akun Anda</li>
-                      <li>• File akan diverifikasi oleh admin dalam 1-24 jam</li>
-                    </ul>
-                  </div>
-                </div>
-              )}
+          {/* Important Note */}
+          <Card className="mb-8 bg-blue-50 border-blue-200">
+            <CardContent className="pt-6">
+              <h3 className="font-medium text-blue-900 mb-2">📝 Penting!</h3>
+              <p className="text-sm text-blue-800 mb-4">
+                Setelah melakukan pembayaran, Anda dapat mengupload bukti pembayaran di halaman{" "}
+                <strong>Status Booking</strong>. Transaksi akan dikonfirmasi oleh admin dalam 1-24 jam setelah bukti
+                pembayaran diupload.
+              </p>
             </CardContent>
           </Card>
 
-          {/* Payment Button */}
+          {/* Confirm Button */}
           <div className="text-center">
             <Button
               size="lg"
               className="bg-emerald-600 hover:bg-emerald-700 px-12 min-w-[200px]"
               onClick={handlePayment}
-              disabled={!selectedPayment || !paymentProof || isProcessing}
+              disabled={!selectedPayment || isProcessing}
             >
               {isProcessing ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  {isUploading ? "Mengupload Bukti..." : "Memproses Pembayaran..."}
+                  Memproses...
                 </>
               ) : (
                 <>
                   <CreditCard className="w-4 h-4 mr-2" />
-                  Kirim Pembayaran
+                  Konfirmasi Booking
                 </>
               )}
             </Button>
 
-            {(!selectedPayment || !paymentProof) && (
-              <p className="text-sm text-gray-500 mt-3">
-                {!selectedPayment && "Pilih metode pembayaran dan "}
-                {!paymentProof && "upload bukti pembayaran untuk melanjutkan"}
-              </p>
+            {!selectedPayment && (
+              <p className="text-sm text-gray-500 mt-3">Pilih metode pembayaran untuk melanjutkan</p>
             )}
           </div>
         </div>
