@@ -102,7 +102,7 @@ export default function HomePage() {
         name: "Urban Futsal Hub",
         location: "Tangerang",
         description: "Hub futsal modern di area urban dengan teknologi booking terdepan",
-        image: "/placeholder.svg?height=200&width=300",
+        image: "https://i0.wp.com/www.pleasantonweekly.com/wp-content/uploads/2025/03/Ballistic-United-SC-Pleasanton-CA-3-Fields-Youth-Soccer-Club-Field-View-Pickleball.jpg?resize=780%2C439&ssl=1",
         rating: 4.4,
         priceRange: "Rp 80.000 - 120.000",
         facilities: ["WiFi", "Digital Scoreboard", "Parkir", "Food Court"],
